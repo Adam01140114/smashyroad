@@ -1,0 +1,209 @@
+<title>Getaway Blocks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+/* Layout: full-bleed blocky world under a fixed angled camera; chunky arcade HUD pinned to the corners; menus are big sticker-like cards. One bright daytime look. */
+:root{
+  --sky:#9fd8f0; --ink:#1d1f2b; --paper:#fffdf7; --pop:#ffd23f; --red:#ff4b3e; --green:#4fbf5a; --blue:#2f80ed; --shade:rgba(29,31,43,.55);
+  --f-d:"Lilita One","Arial Black",Impact,sans-serif; --f-u:"Nunito",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--sky);color:var(--ink);font-family:var(--f-u)}
+#app{position:fixed;inset:0;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-tap-highlight-color:transparent}
+#gl{position:absolute;inset:0;transition:filter .6s}
+#gl canvas{display:block;width:100%;height:100%}
+#gl.grey{filter:grayscale(1) contrast(1.05)}
+#hudc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.outline{text-shadow:0 3px 0 var(--ink),2px 2px 0 var(--ink),-2px 2px 0 var(--ink),2px -2px 0 var(--ink),-2px -2px 0 var(--ink),0 -2px 0 var(--ink)}
+button{font-family:var(--f-d)}
+.btn{appearance:none;border:3px solid var(--ink);background:var(--paper);color:var(--ink);font:400 20px/1 var(--f-d);letter-spacing:.02em;padding:12px 18px 10px;border-radius:14px;box-shadow:0 5px 0 var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-transform:uppercase;transition:transform .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+.btn:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.btn.pop{background:var(--pop)} .btn.red{background:var(--red);color:var(--paper)} .btn.green{background:var(--green);color:var(--paper)} .btn.blue{background:var(--blue);color:var(--paper)}
+.btn.big{font-size:34px;padding:16px 34px 13px;border-radius:18px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn small{font:800 12px var(--f-u);text-transform:none;letter-spacing:0}
+
+/* HUD */
+#hud{position:absolute;inset:0;pointer-events:none}
+.score{position:absolute;right:calc(16px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));text-align:right;color:var(--paper);font:400 54px/1 var(--f-d);font-variant-numeric:tabular-nums}
+.cashrun{font:400 22px/1 var(--f-d);color:var(--green);margin-top:6px}
+.sirens{position:absolute;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;gap:4px}
+.sir{width:22px;height:22px;border-radius:7px 7px 3px 3px;border:3px solid var(--ink);background:rgba(255,255,255,.35)}
+.sir.on{background:linear-gradient(90deg,var(--red) 50%,var(--blue) 50%)}
+.sir.alien{border-radius:50% 50% 40% 40%;background:#79e3a5}
+.sir.alien.on{background:radial-gradient(circle at 35% 55%,#ff2b2b 18%,transparent 20%),radial-gradient(circle at 65% 55%,#ff2b2b 18%,transparent 20%),#79e3a5}
+.sirens.pulse .sir.on{animation:sp .5s 3}
+@keyframes sp{50%{transform:scale(1.35)}}
+#mini{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px));width:126px;height:126px;border-radius:50%;border:4px solid var(--ink);background:#7cc451;box-shadow:0 4px 0 var(--ink)}
+.carhp{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(150px + env(safe-area-inset-top,0px));width:150px;display:grid;gap:3px}
+.carhp b{font:400 14px/1 var(--f-d);color:var(--paper);display:flex;justify-content:space-between}
+.carhp .tr{height:14px;border:3px solid var(--ink);border-radius:8px;background:rgba(255,255,255,.6);overflow:hidden;box-shadow:0 3px 0 var(--ink)}
+.carhp .tr i{display:block;height:100%;width:100%;background:var(--green);transition:width .15s,background .3s}
+.carhp.hit .tr{animation:barhit .35s}
+@keyframes barhit{0%,100%{transform:none}25%{transform:translateX(-4px);background:#ffb3a8}75%{transform:translateX(4px)}}
+.hearts{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(196px + env(safe-area-inset-top,0px));display:flex;gap:3px;flex-wrap:wrap;max-width:200px}
+.hearts.hit{animation:heartshake .45s}
+@keyframes heartshake{0%,100%{transform:none}20%{transform:translate(-5px,2px) rotate(-4deg)}40%{transform:translate(5px,-2px) rotate(4deg)}60%{transform:translate(-3px,1px)}80%{transform:translate(3px,0)}}
+.heart.pop{animation:heartpop .5s forwards}
+@keyframes heartpop{0%{transform:scale(1.6);background:#fff}60%{transform:scale(.8)}100%{transform:scale(1);background:rgba(29,31,43,.3)}}
+#hurt{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(255,40,30,0) 35%,rgba(255,40,30,.75) 100%);box-shadow:inset 0 0 0 10px rgba(255,40,30,.8)}
+.heart{width:22px;height:20px;background:var(--red);clip-path:polygon(50% 100%,0 40%,0 15%,20% 0,40% 0,50% 15%,60% 0,80% 0,100% 15%,100% 40%);}
+.heart.off{background:rgba(29,31,43,.3)}
+.stam{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(222px + env(safe-area-inset-top,0px));width:126px;height:8px;border:2px solid var(--ink);border-radius:5px;background:var(--paper);overflow:hidden}
+.stam i{display:block;height:100%;background:var(--blue)}
+.powers{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(240px + env(safe-area-inset-top,0px));display:grid;gap:4px;font:400 15px var(--f-d);color:var(--paper)}
+.actions{position:absolute;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));display:flex;gap:10px;pointer-events:auto}
+.actions .btn{font-size:18px;padding:12px 16px 10px}
+.pausebtn{position:absolute;right:calc(16px + env(safe-area-inset-right,0px));top:calc(100px + env(safe-area-inset-top,0px));pointer-events:auto;font-size:15px;padding:8px 12px 6px}
+#tapstart{position:absolute;left:50%;bottom:calc(18% + env(safe-area-inset-bottom,0px));transform:translateX(-50%);text-align:center;color:var(--paper);font:400 34px/1.1 var(--f-d);pointer-events:none;animation:bob 1.2s ease-in-out infinite}
+#tapstart small{display:block;font:800 15px var(--f-u);margin-top:8px}
+@keyframes bob{50%{transform:translate(-50%,-8px)}}
+.zones{position:absolute;inset:auto 0 0 0;height:30%;display:none;pointer-events:none}
+body.touch .zones{display:flex}
+.zones div{flex:1;display:grid;place-items:center;font:400 46px var(--f-d);color:rgba(255,255,255,.55)}
+#toasts{position:absolute;left:50%;top:calc(52px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;width:min(92vw,520px);z-index:30}
+.toast{font:400 20px/1.15 var(--f-d);color:var(--paper);text-align:center;animation:tst 2.6s ease forwards}
+@keyframes tst{0%{opacity:0;transform:scale(.7)}10%{opacity:1;transform:scale(1.08)}18%{transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+#bigword{position:absolute;left:0;right:0;top:38%;text-align:center;font:400 clamp(56px,14vw,150px)/1 var(--f-d);color:var(--paper);letter-spacing:.02em;pointer-events:none;animation:slam .5s cubic-bezier(.2,1.6,.4,1)}
+#bigword.red{color:var(--red)}
+@keyframes slam{from{transform:scale(2.4);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* Panels */
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding-inline:16px;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));overflow-y:auto;background:rgba(29,31,43,.35)}
+.card{background:var(--paper);border:4px solid var(--ink);border-radius:22px;box-shadow:0 8px 0 var(--ink);padding:20px;width:min(560px,100%);display:grid;gap:14px}
+.card h2{margin:0;font:400 36px/1 var(--f-d);text-transform:uppercase;text-wrap:balance}
+.card p{margin:0;font:600 15px/1.45 var(--f-u)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.cashpill{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:var(--paper);font:400 20px var(--f-d);padding:6px 12px 5px;border-radius:12px}
+.bill{width:24px;height:14px;background:var(--green);border:2px solid var(--paper);border-radius:3px;display:inline-grid;place-items:center;font:900 10px var(--f-u);color:var(--ink)}
+
+/* Menu */
+#menu{position:absolute;inset:0;display:grid;grid-template-rows:auto 1fr auto;padding-inline:16px;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(18px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(29,31,43,.25),transparent 30%,transparent 70%,rgba(29,31,43,.35))}
+.mtop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.logo{margin:0;text-align:center;font:400 clamp(56px,12vw,124px)/.86 var(--f-d);color:var(--pop);transform:rotate(-3deg);align-self:center;justify-self:center}
+.logo span{display:block;color:var(--paper);font-size:.62em}
+.mbottom{display:grid;gap:14px;justify-items:center}
+.mrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.carname{font:400 20px var(--f-d);color:var(--paper)}
+
+/* Garage */
+.tabs{display:flex;gap:8px}
+.tab{appearance:none;border:3px solid var(--ink);background:var(--paper);font:400 18px var(--f-d);padding:8px 14px 6px;border-radius:12px;cursor:pointer;text-transform:uppercase}
+.tab.on{background:var(--pop)}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;max-height:min(46vh,420px);overflow-y:auto;padding:4px}
+.gcard{appearance:none;border:3px solid var(--ink);border-radius:14px;background:#eaf6fb;padding:6px 6px 8px;cursor:pointer;display:grid;gap:4px;justify-items:center;font-family:var(--f-u);position:relative}
+.gcard img{width:100%;aspect-ratio:4/3;object-fit:contain;max-width:100%}
+.gcard.lock img{filter:brightness(0) opacity(.55)}
+.gcard.sel{background:var(--pop);box-shadow:0 0 0 3px var(--paper),0 0 0 6px var(--ink)}
+.gcard b{font:400 14px/1.1 var(--f-d);text-align:center}
+.gcard i{font:800 10px var(--f-u);font-style:normal;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;border-radius:6px;color:var(--paper)}
+.gcard .lv{position:absolute;top:4px;left:6px;font:400 13px var(--f-d)}
+.gdetail{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center}
+.gdetail img{width:150px;max-width:40vw;aspect-ratio:4/3;object-fit:contain;background:#eaf6fb;border:3px solid var(--ink);border-radius:14px}
+.stat{display:grid;grid-template-columns:80px 1fr;gap:8px;align-items:center;font:800 12px var(--f-u);text-transform:uppercase}
+.stat .tr{height:10px;border:2px solid var(--ink);border-radius:6px;overflow:hidden;background:#fff}
+.stat .tr i{display:block;height:100%;background:var(--green)}
+
+/* Prize */
+.reel{height:170px;border:4px solid var(--ink);border-radius:18px;background:repeating-linear-gradient(45deg,#ffe58a 0 14px,#ffd23f 14px 28px);display:grid;place-items:center;overflow:hidden;position:relative}
+.reel img{height:150px;max-width:90%;object-fit:contain}
+.reel .star{position:absolute;top:8px;right:12px;font:400 26px var(--f-d)}
+.mlist{display:grid;gap:8px;max-height:min(52vh,460px);overflow-y:auto}
+.mitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;border:3px solid var(--ink);border-radius:14px;padding:10px 12px;background:#eaf6fb}
+.mitem.done{background:#d9f5dd}
+.mitem b{font:400 18px var(--f-d)} .mitem span{font:600 13px/1.35 var(--f-u)} .mitem em{font:400 15px var(--f-d);font-style:normal;align-self:center}
+@media (max-width:520px){.score{font-size:40px}.sir{width:16px;height:16px;border-width:2px}.sirens{gap:2px;top:calc(140px + env(safe-area-inset-top,0px))}#mini{width:100px;height:100px}.carhp{top:calc(122px + env(safe-area-inset-top,0px));width:120px}.hearts{top:calc(164px + env(safe-area-inset-top,0px))}.stam{top:calc(190px + env(safe-area-inset-top,0px));width:100px}.powers{top:calc(206px + env(safe-area-inset-top,0px))}}
+@media (prefers-reduced-motion:reduce){#tapstart{animation:none}.toast{animation-duration:3.2s}}
+</style>
+
+<div id="app">
+  <div id="gl"></div>
+  <canvas id="hudc"></canvas>
+  <div id="hurt"></div>
+  <div id="hud" hidden>
+    <canvas id="mini"></canvas>
+    <div class="carhp" id="carhp" hidden><b class="outline"><span id="carhpN">Car</span><span id="carhpV">100%</span></b><div class="tr"><i id="carhpI"></i></div></div>
+    <div class="hearts" id="hearts"></div>
+    <div class="stam" id="stam" hidden><i id="stamI"></i></div>
+    <div class="powers outline" id="powers"></div>
+    <div class="sirens" id="sirens"></div>
+    <div class="score outline"><span id="score">0</span><div class="cashrun outline" id="cashrun">$0</div></div>
+    <button class="btn pausebtn" id="bPause" aria-label="Pause">II</button>
+    <button class="btn pausebtn" id="bCam" aria-label="Change camera" style="top:calc(146px + env(safe-area-inset-top,0px))">View</button>
+    <div class="actions">
+      <button class="btn red" id="bShoot" hidden>Shoot</button>
+      <button class="btn green" id="bGas" hidden>Gas</button>
+      <button class="btn blue" id="bGrav" hidden>Gravity gun <small id="gravN"></small></button>
+      <button class="btn pop" id="bExit">Get out</button>
+    </div>
+    <div class="zones"><div>&#9664;</div><div>&#9654;</div></div>
+    <div id="tapstart" class="outline">Hold left or right to drive<small>W is the gas. Hold both sides to brake and reverse. Space or E gets out, Space shoots on foot. Right click or C changes the camera.</small></div>
+  </div>
+  <div id="toasts"></div>
+  <div id="bigword" class="outline" hidden></div>
+
+  <div id="menu">
+    <div class="mtop">
+      <div class="cashpill"><span class="bill">$</span><span id="mCash">0</span></div>
+      <div class="row"><button class="btn" id="mSound">Sound on</button></div>
+    </div>
+    <h1 class="logo outline">Getaway<span>Blocks</span></h1>
+    <div class="mbottom">
+      <div class="carname outline" id="mCar">Pickup</div>
+      <button class="btn pop big" id="mPlay">Drive</button>
+      <div class="mrow">
+        <button class="btn" id="mGarage">Garage</button>
+        <button class="btn red" id="mPrize">Win a prize <small>$100</small></button>
+        <button class="btn" id="mMissions">Missions</button>
+        <button class="btn green" id="mGift">Free gift</button>
+      </div>
+      <div class="carname outline" style="font-size:16px" id="mBest">Best 0</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="garage" hidden>
+    <div class="card" style="width:min(760px,100%)">
+      <div class="spread"><h2>Garage</h2><div class="row"><div class="cashpill"><span class="bill">$</span><span id="gCash">0</span></div><button class="btn" id="gClose">Done</button></div></div>
+      <div class="tabs"><button class="tab on" data-t="cars">Vehicles</button><button class="tab" data-t="chars">Characters</button></div>
+      <div class="gdetail" id="gDetail"></div>
+      <div class="ggrid" id="gGrid"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="prize" hidden>
+    <div class="card" style="width:min(460px,100%)">
+      <h2>Win a prize</h2>
+      <div class="reel" id="reel"><img id="reelImg" alt=""><span class="star" id="reelStar" hidden>&#9733;</span></div>
+      <p id="prizeText">Spin for a random vehicle, character or upgrade. Doubles turn into upgrades.</p>
+      <div class="row"><button class="btn red" id="pSpin">Spin $100</button><button class="btn" id="pUse" hidden>Drive it</button><button class="btn" id="pClose">Close</button></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="missions" hidden>
+    <div class="card" style="width:min(620px,100%)">
+      <div class="spread"><h2>Missions</h2><button class="btn" id="msClose">Close</button></div>
+      <div class="mlist" id="mList"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="results" hidden>
+    <div class="card" style="width:min(460px,100%)">
+      <div class="spread"><h2 id="rTitle">Arrested</h2><div class="cashpill"><span class="bill">$</span><span id="rCash">0</span></div></div>
+      <p id="rWhy"></p>
+      <div class="spread" style="align-items:flex-end"><div><div style="font:800 12px var(--f-u);text-transform:uppercase">Score</div><div style="font:400 56px/1 var(--f-d)" id="rScore">0</div></div><div style="text-align:right"><div style="font:800 12px var(--f-u);text-transform:uppercase" id="rBestL">Best</div><div style="font:400 30px/1 var(--f-d)" id="rBest">0</div></div></div>
+      <p id="rStats" style="font-size:13px"></p>
+      <div class="row"><button class="btn pop big" id="rAgain">Drive again</button></div>
+      <div class="row"><button class="btn red" id="rPrize">Win a prize <small>$100</small></button><button class="btn" id="rGarage">Garage</button><button class="btn" id="rMenu">Menu</button></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="paused" hidden>
+    <div class="card" style="width:min(400px,100%)">
+      <h2>Paused</h2>
+      <div class="row"><button class="btn pop" id="paResume">Resume</button><button class="btn" id="paQuit">Quit run</button></div>
+    </div>
+  </div>
+</div>
